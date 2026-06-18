@@ -47,5 +47,5 @@ class MVTecSolver(object):
             f.write(json.dumps(info, indent=4) + "\n")
         print('normal_samples', normal_samples, 'anomaly_samples', anomaly_samples)
 if __name__ == '__main__':
-    runner = MVTecSolver(root='/Users/nguyen.ngo.1/Nguyen/AnomalyCLIP/data/mvdataset')
+    runner = MVTecSolver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/mvtecdataset')
     runner.run()

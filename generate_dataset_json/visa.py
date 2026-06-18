@@ -50,5 +50,5 @@ class VisASolver(object):
 
 
 if __name__ == '__main__':
-    runner = VisASolver(root='/remote-home/iot_zhouqihang/data/Visa')
+    runner = VisASolver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/visa')
     runner.run()

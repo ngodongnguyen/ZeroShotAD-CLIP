@@ -1,0 +1,20 @@
+{
+  "K": 4,
+  "D_concat": 3072,
+  "n_layers": 4,
+  "features_list": [
+    6,
+    12,
+    18,
+    24
+  ],
+  "dataset": "mvtec",
+  "n_anom_patches": 105471,
+  "cluster_sizes": [
+    6764,
+    29338,
+    50933,
+    18436
+  ],
+  "seed": 42
+}

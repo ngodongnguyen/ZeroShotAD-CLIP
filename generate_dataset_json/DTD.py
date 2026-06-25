@@ -39,5 +39,5 @@ class DTDSolver(object):
 
 
 if __name__ == '__main__':
-    runner = DTDSolver(root='/remote-home/iot_zhouqihang/data/DTD-Synthetic')
+    runner = DTDSolver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/DTD-Synthetic')
     runner.run()

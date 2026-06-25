@@ -64,5 +64,5 @@ class DAGMSolver(object):
 
 
 if __name__ == '__main__':
-    runner = DAGMSolver(root='/remote-home/iot_zhouqihang/data/DAGM_KaggleUpload')
+    runner = DAGMSolver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/DAGM/DAGM_KaggleUpload')
     runner.run()

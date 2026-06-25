@@ -11,6 +11,8 @@ from tqdm import tqdm
 
 import os
 import random
+import tempfile
+import shutil
 import numpy as np
 from tabulate import tabulate
 from utils import get_transform
@@ -39,7 +41,7 @@ def test(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     AnomalyCLIP_parameters = {"Prompt_length": args.n_ctx, "learnabel_text_embedding_depth": args.depth, "learnabel_text_embedding_length": args.t_n_ctx}
-    
+
     model, _ = AnomalyCLIP_lib.load("ViT-L/14@336px", device=device, design_details = AnomalyCLIP_parameters)
     model.eval()
 
@@ -48,6 +50,9 @@ def test(args):
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
     obj_list = test_data.obj_list
 
+    tmp_base = os.path.join(save_path, 'tmp')
+    os.makedirs(tmp_base, exist_ok=True)
+    tmp_dir = tempfile.mkdtemp(prefix='anomalyclip_', dir=tmp_base)
 
     results = {}
     metrics = {}
@@ -56,7 +61,8 @@ def test(args):
         results[obj]['gt_sp'] = []
         results[obj]['pr_sp'] = []
         results[obj]['imgs_masks'] = []
-        results[obj]['anomaly_maps'] = []
+        results[obj]['anomaly_map_paths'] = []
+        results[obj]['img_paths'] = []
         metrics[obj] = {}
         metrics[obj]['pixel-auroc'] = 0
         metrics[obj]['pixel-aupro'] = 0
@@ -86,6 +92,7 @@ def test(args):
         gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0
         results[cls_name[0]]['imgs_masks'].append(gt_mask)  # px
         results[cls_name[0]]['gt_sp'].extend(items['anomaly'].detach().cpu())
+        results[cls_name[0]]['img_paths'].append(items['img_path'][0])
 
         with torch.no_grad():
             image_features, patch_features = model.encode_image(image, features_list, DPAM_layer = 20)
@@ -101,17 +108,19 @@ def test(args):
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(patch_feature, text_features[0])
                     similarity_map = AnomalyCLIP_lib.get_similarity_map(similarity[:, 1:, :], args.image_size)
                     anomaly_map = (similarity_map[...,1] + 1 - similarity_map[...,0])/2.0
-                    # The following code is equivalent. 
-                    # anomaly_map = similarity_map[...,1] 
                     anomaly_map_list.append(anomaly_map)
 
             anomaly_map = torch.stack(anomaly_map_list)
-            
             anomaly_map = anomaly_map.sum(dim = 0)
             results[cls_name[0]]['pr_sp'].extend(text_probs.detach().cpu())
             anomaly_map = torch.stack([torch.from_numpy(gaussian_filter(i, sigma = args.sigma)) for i in anomaly_map.detach().cpu()], dim = 0 )
-            results[cls_name[0]]['anomaly_maps'].append(anomaly_map)
-            # visualizer(items['img_path'], anomaly_map.detach().cpu().numpy(), args.image_size, args.save_path, cls_name)
+            map_idx = len(results[cls_name[0]]['anomaly_map_paths'])
+            map_path = os.path.join(tmp_dir, f"{cls_name[0]}_{map_idx}.npy")
+            np.save(map_path, anomaly_map.numpy())
+            results[cls_name[0]]['anomaly_map_paths'].append(map_path)
+
+    del model, prompt_learner
+    torch.cuda.empty_cache()
 
     table_ls = []
     image_auroc_list = []
@@ -123,14 +132,14 @@ def test(args):
         table.append(obj)
         print(f"\nComputing metrics for: {obj}")
         results[obj]['imgs_masks'] = torch.cat(results[obj]['imgs_masks'])
-        results[obj]['anomaly_maps'] = torch.cat(results[obj]['anomaly_maps']).detach().cpu().numpy()
+        results[obj]['anomaly_maps'] = np.concatenate([np.load(p) for p in results[obj]['anomaly_map_paths']], axis=0)
         if args.metrics == 'image-level':
             image_auroc = image_level_metrics(results, obj, "image-auroc")
             image_ap = image_level_metrics(results, obj, "image-ap")
             table.append(str(np.round(image_auroc * 100, decimals=1)))
             table.append(str(np.round(image_ap * 100, decimals=1)))
             image_auroc_list.append(image_auroc)
-            image_ap_list.append(image_ap) 
+            image_ap_list.append(image_ap)
         elif args.metrics == 'pixel-level':
             pixel_auroc = pixel_level_metrics(results, obj, "pixel-auroc")
             pixel_aupro = pixel_level_metrics(results, obj, "pixel-aupro")
@@ -148,31 +157,66 @@ def test(args):
             table.append(str(np.round(image_auroc * 100, decimals=1)))
             table.append(str(np.round(image_ap * 100, decimals=1)))
             image_auroc_list.append(image_auroc)
-            image_ap_list.append(image_ap) 
+            image_ap_list.append(image_ap)
             pixel_auroc_list.append(pixel_auroc)
             pixel_aupro_list.append(pixel_aupro)
+        gt = np.array([int(g) for g in results[obj]['gt_sp']])
+        pr = np.array([float(p) for p in results[obj]['pr_sp']])
+        pred = (pr >= 0.5).astype(int)
+        tp = int(((pred == 1) & (gt == 1)).sum())
+        fp = int(((pred == 1) & (gt == 0)).sum())
+        tn = int(((pred == 0) & (gt == 0)).sum())
+        fn = int(((pred == 0) & (gt == 1)).sum())
+        f1 = 2*tp / (2*tp + fp + fn) if (2*tp + fp + fn) > 0 else 0
+        from sklearn.metrics import precision_recall_curve
+        prec, rec, ths = precision_recall_curve(gt, pr)
+        f1s = 2*prec*rec/(prec+rec+1e-8)
+        best_th = float(ths[np.argmax(f1s[:-1])]) if len(ths) > 0 else 0.5
+        logger.info("[%s] TP=%d FP=%d TN=%d FN=%d | F1@0.5=%.3f | best_th=%.3f F1@best=%.3f",
+                    obj, tp, fp, tn, fn, f1, best_th, float(np.max(f1s)))
+
+        if args.save_top_k > 0:
+            import cv2
+            error = np.abs(pr - gt)
+            top_idx = np.argsort(error)[::-1][:args.save_top_k]
+            top_dir = os.path.join(args.save_path, 'top_worst', obj)
+            os.makedirs(top_dir, exist_ok=True)
+            for rank, i in enumerate(top_idx):
+                kind = 'FN' if gt[i] == 1 else ('FP' if gt[i] == 0 else 'ok')
+                img_path = results[obj]['img_paths'][i]
+                amap = np.load(results[obj]['anomaly_map_paths'][i])
+                vis = cv2.cvtColor(cv2.resize(cv2.imread(img_path), (args.image_size, args.image_size)), cv2.COLOR_BGR2RGB)
+                mask = normalize(amap[0])
+                scoremap = (mask * 255).astype(np.uint8)
+                scoremap = cv2.applyColorMap(scoremap, cv2.COLORMAP_JET)
+                scoremap = cv2.cvtColor(scoremap, cv2.COLOR_BGR2RGB)
+                overlay = (0.5 * vis + 0.5 * scoremap).astype(np.uint8)
+                fname = f"{rank+1:02d}_{kind}_score{pr[i]:.3f}_{os.path.basename(img_path)}"
+                cv2.imwrite(os.path.join(top_dir, fname), cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+        results[obj]['imgs_masks'] = None
+        results[obj]['anomaly_maps'] = None
+        for p in results[obj]['anomaly_map_paths']:
+            os.remove(p)
         table_ls.append(table)
 
     if args.metrics == 'image-level':
-        # logger
-        table_ls.append(['mean', 
+        table_ls.append(['mean',
                         str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
                         str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
         results = tabulate(table_ls, headers=['objects', 'image_auroc', 'image_ap'], tablefmt="pipe")
     elif args.metrics == 'pixel-level':
-        # logger
         table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
                         str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1))
                        ])
         results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro'], tablefmt="pipe")
     elif args.metrics == 'image-pixel-level':
-        # logger
         table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
-                        str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)), 
+                        str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)),
                         str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
                         str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
         results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro', 'image_auroc', 'image_ap'], tablefmt="pipe")
     logger.info("\n%s", results)
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':
@@ -192,7 +236,8 @@ if __name__ == '__main__':
     parser.add_argument("--metrics", type=str, default='image-pixel-level')
     parser.add_argument("--seed", type=int, default=111, help="random seed")
     parser.add_argument("--sigma", type=int, default=4, help="zero shot")
-    
+    parser.add_argument("--save_top_k", type=int, default=0, help="save top-K worst images per class to save_path/top_worst/")
+
     args = parser.parse_args()
     print(args)
     setup_seed(args.seed)

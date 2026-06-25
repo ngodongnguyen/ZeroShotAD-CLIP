@@ -11,7 +11,33 @@ from tqdm import tqdm
 import numpy as np
 import os
 import random
+import urllib.request, urllib.parse, json
+from pathlib import Path
 from utils import get_transform
+
+
+def _load_telegram_env():
+    env = Path(__file__).parent / '.env'
+    if env.exists():
+        for line in env.read_text().splitlines():
+            if '=' in line and not line.startswith('#'):
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
+def notify(text):
+    """Send a Telegram message. Silently skips if credentials not set."""
+    _load_telegram_env()
+    token   = os.environ.get('TELEGRAM_TOKEN')
+    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+    if not token or not chat_id:
+        return
+    data = urllib.parse.urlencode({'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}).encode()
+    try:
+        urllib.request.urlopen(
+            urllib.request.Request(f'https://api.telegram.org/bot{token}/sendMessage', data=data),
+            timeout=10)
+    except Exception as e:
+        print(f'[notify] Telegram failed: {e}')
 def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -42,6 +68,14 @@ def train(args):
     model.visual.DAPM_replace(DPAM_layer = 20)
     ##########################################################################################
     optimizer = torch.optim.Adam(list(prompt_learner.parameters()), lr=args.learning_rate, betas=(0.5, 0.999))
+
+    notify(
+        f'🚀 <b>Training started</b>\n'
+        f'Dataset : {args.dataset}\n'
+        f'Data    : {args.train_data_path}\n'
+        f'Epochs  : {args.epoch}  |  Batch: {args.batch_size}\n'
+        f'Save    : {args.save_path}'
+    )
 
     # losses
     loss_focal = FocalLoss()
@@ -106,12 +140,24 @@ def train(args):
             loss_list.append(loss.item())
         # logs
         if (epoch + 1) % args.print_freq == 0:
-            logger.info('epoch [{}/{}], loss:{:.4f}, image_loss:{:.4f}'.format(epoch + 1, args.epoch, np.mean(loss_list), np.mean(image_loss_list)))
+            avg_loss = np.mean(loss_list)
+            avg_img  = np.mean(image_loss_list)
+            logger.info('epoch [{}/{}], loss:{:.4f}, image_loss:{:.4f}'.format(epoch + 1, args.epoch, avg_loss, avg_img))
+            notify(
+                f'📊 <b>Epoch {epoch+1}/{args.epoch}</b>  [{args.dataset}]\n'
+                f'loss: {avg_loss:.4f}  |  img_loss: {avg_img:.4f}'
+            )
 
         # save model
         if (epoch + 1) % args.save_freq == 0:
             ckp_path = os.path.join(args.save_path, 'epoch_' + str(epoch + 1) + '.pth')
             torch.save({"prompt_learner": prompt_learner.state_dict()}, ckp_path)
+
+    notify(
+        f'✅ <b>Training done!</b>  [{args.dataset}]\n'
+        f'Epochs  : {args.epoch}\n'
+        f'Checkpoint: {args.save_path}'
+    )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("AnomalyCLIP", add_help=True)

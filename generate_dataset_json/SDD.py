@@ -49,5 +49,5 @@ class SDDSolver(object):
 
 
 if __name__ == '__main__':
-    runner = SDDSolver(root='/remote-home/iot_zhouqihang/data/SDD')
+    runner = SDDSolver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/SDD')
     runner.run()

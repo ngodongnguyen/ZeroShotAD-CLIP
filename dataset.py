@@ -45,7 +45,7 @@ class Dataset(data.Dataset):
         self.data_all = []
         meta_info = json.load(open(f'{self.root}/meta.json', 'r'))
         name = self.root.split('/')[-1]
-        meta_info = meta_info[mode]
+        meta_info = meta_info.get(mode) or meta_info.get(mode.capitalize()) or meta_info[mode]
 
         self.cls_names = list(meta_info.keys())
         for cls_name in self.cls_names:

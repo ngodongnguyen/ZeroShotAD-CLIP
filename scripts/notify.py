@@ -1,12 +1,3 @@
-"""Send Telegram notification comparing test results vs AnomalyCLIP baseline.
-
-Usage (called from test.sh after each test run):
-    python scripts/notify.py \
-        --dataset visa \
-        --log_path ./results/9_12_4_multiscale_visa/zero_shot/visa/log.txt \
-        --exp_name "CDMP K=2"
-"""
-
 import os
 import re
 import sys
@@ -16,19 +7,41 @@ import urllib.parse
 import json
 from pathlib import Path
 
-# AnomalyCLIP baseline (image_auroc, image_ap, pixel_auroc, pixel_aupro)
-# pixel metrics taken from AnomalyCLIP paper Table 1/2; None = not reported
 BASELINE = {
-    'mvtec':            {'image_auroc': 91.5, 'image_ap': 96.2, 'pixel_auroc': 85.1, 'pixel_aupro': None},
-    'visa':             {'image_auroc': 82.1, 'image_ap': 85.4, 'pixel_auroc': 85.1, 'pixel_aupro': None},
-    'mpdd':             {'image_auroc': 77.0, 'image_ap': 82.0, 'pixel_auroc': None,  'pixel_aupro': None},
-    'btad':             {'image_auroc': 88.3, 'image_ap': 87.3, 'pixel_auroc': None,  'pixel_aupro': None},
-    'sdd':              {'image_auroc': 84.7, 'image_ap': 80.0, 'pixel_auroc': None,  'pixel_aupro': None},
-    'dagm':             {'image_auroc': 97.5, 'image_ap': 92.3, 'pixel_auroc': None,  'pixel_aupro': None},
-    'dtd':              {'image_auroc': 93.5, 'image_ap': 97.0, 'pixel_auroc': None,  'pixel_aupro': None},
-    'kolektorsdd':      {'image_auroc': 84.7, 'image_ap': 80.0, 'pixel_auroc': None,  'pixel_aupro': None},
-    'dagm_kaggleupload':{'image_auroc': 97.5, 'image_ap': 92.3, 'pixel_auroc': None,  'pixel_aupro': None},
-    'dtd-synthetic':    {'image_auroc': 93.5, 'image_ap': 97.0, 'pixel_auroc': None,  'pixel_aupro': None},
+    'anomalyclip': {
+        'mvtec': {
+            'image_auroc': 91.5, 'image_ap': 96.2,
+            'pixel_auroc': 91.1, 'pixel_aupro': 81.4
+        },
+        'visa': {
+            'image_auroc': 82.1, 'image_ap': 85.4,
+            'pixel_auroc': 95.5, 'pixel_aupro': 87.0
+        },
+        'mpdd': {
+            'image_auroc': 77.0, 'image_ap': 82.0,
+            'pixel_auroc': 96.5, 'pixel_aupro': 88.7
+        },
+        'btad': {
+            'image_auroc': 88.3, 'image_ap': 87.3,
+            'pixel_auroc': 94.2, 'pixel_aupro': 74.8
+        },
+        'sdd': {
+            'image_auroc': 84.7, 'image_ap': 80.0,
+            'pixel_auroc': 90.6, 'pixel_aupro': 67.8
+        },
+        'dagm': {
+            'image_auroc': 97.5, 'image_ap': 92.3,
+            'pixel_auroc': 95.6, 'pixel_aupro': 91.0
+        },
+        'dtd-synthetic': {
+            'image_auroc': 93.5, 'image_ap': 97.0,
+            'pixel_auroc': 97.9, 'pixel_aupro': 92.3
+        },
+        'dagm_kaggleupload': {
+            'image_auroc': 97.5, 'image_ap': 92.3,
+            'pixel_auroc': 95.6, 'pixel_aupro': 91.0
+        }
+    }
 }
 
 METRIC_KEYS = ['image_auroc', 'image_ap', 'pixel_auroc', 'pixel_aupro']
@@ -98,9 +111,14 @@ def load_env():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset',  required=True, help='dataset name (visa/mpdd/dtd/...)')
-    parser.add_argument('--log_path', required=True, help='path to test log.txt')
-    parser.add_argument('--exp_name', default='', help='experiment label (e.g. "CDMP K=2")')
+    parser.add_argument('--mode', default='test', choices=['test', 'msg'],
+                        help='"test": parse log and compare vs baseline; "msg": send raw message')
+    # test mode
+    parser.add_argument('--dataset',  default='', help='dataset name (visa/mpdd/dtd/...)')
+    parser.add_argument('--log_path', default='', help='path to test log.txt')
+    parser.add_argument('--exp_name', default='', help='experiment label')
+    # msg mode
+    parser.add_argument('--text', default='', help='raw message text (used with --mode msg)')
     args = parser.parse_args()
 
     load_env()
@@ -110,13 +128,22 @@ def main():
         print('TELEGRAM_TOKEN / TELEGRAM_CHAT_ID not set', file=sys.stderr)
         sys.exit(1)
 
+    if args.mode == 'msg':
+        send_telegram(token, chat_id, args.text or '(empty message)')
+        return
+
+    # --- test mode (original behavior) ---
+    if not args.dataset or not args.log_path:
+        print('--dataset and --log_path required in test mode', file=sys.stderr)
+        sys.exit(1)
+
     metrics = parse_log(args.log_path)
     if not metrics:
         print(f'Could not parse metrics from {args.log_path}', file=sys.stderr)
         sys.exit(1)
 
     ds_key = args.dataset.lower()
-    baseline = BASELINE.get(ds_key, {})
+    baseline = BASELINE.get('anomalyclip', {}).get(ds_key, {})
 
     label = args.exp_name or args.dataset
     lines = [f'<b>✅ {label} → {args.dataset.upper()}</b>']

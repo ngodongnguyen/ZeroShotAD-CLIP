@@ -162,27 +162,25 @@ def test(args):
             pixel_aupro_list.append(pixel_aupro)
         gt = np.array([int(g) for g in results[obj]['gt_sp']])
         pr = np.array([float(p) for p in results[obj]['pr_sp']])
-        pred = (pr >= 0.5).astype(int)
-        tp = int(((pred == 1) & (gt == 1)).sum())
-        fp = int(((pred == 1) & (gt == 0)).sum())
-        tn = int(((pred == 0) & (gt == 0)).sum())
-        fn = int(((pred == 0) & (gt == 1)).sum())
-        f1 = 2*tp / (2*tp + fp + fn) if (2*tp + fp + fn) > 0 else 0
-        from sklearn.metrics import precision_recall_curve
-        prec, rec, ths = precision_recall_curve(gt, pr)
-        f1s = 2*prec*rec/(prec+rec+1e-8)
-        best_th = float(ths[np.argmax(f1s[:-1])]) if len(ths) > 0 else 0.5
-        logger.info("[%s] TP=%d FP=%d TN=%d FN=%d | F1@0.5=%.3f | best_th=%.3f F1@best=%.3f",
-                    obj, tp, fp, tn, fn, f1, best_th, float(np.max(f1s)))
+        if len(np.unique(gt)) == 2:
+            normal_scores = pr[gt == 0]
+            anomaly_scores = pr[gt == 1]
+            logger.info(
+                "[%s] score summary | normal mean=%.3f max=%.3f | anomaly mean=%.3f min=%.3f",
+                obj,
+                float(normal_scores.mean()),
+                float(normal_scores.max()),
+                float(anomaly_scores.mean()),
+                float(anomaly_scores.min()),
+            )
 
-        if args.save_top_k > 0:
+        if args.print_top_k > 0:
             import cv2
-            error = np.abs(pr - gt)
-            top_idx = np.argsort(error)[::-1][:args.save_top_k]
+
             top_dir = os.path.join(args.save_path, 'top_worst', obj)
             os.makedirs(top_dir, exist_ok=True)
-            for rank, i in enumerate(top_idx):
-                kind = 'FN' if gt[i] == 1 else ('FP' if gt[i] == 0 else 'ok')
+
+            def save_overlay(rank, i, kind):
                 img_path = results[obj]['img_paths'][i]
                 amap = np.load(results[obj]['anomaly_map_paths'][i])
                 vis = cv2.cvtColor(cv2.resize(cv2.imread(img_path), (args.image_size, args.image_size)), cv2.COLOR_BGR2RGB)
@@ -191,8 +189,23 @@ def test(args):
                 scoremap = cv2.applyColorMap(scoremap, cv2.COLORMAP_JET)
                 scoremap = cv2.cvtColor(scoremap, cv2.COLOR_BGR2RGB)
                 overlay = (0.5 * vis + 0.5 * scoremap).astype(np.uint8)
-                fname = f"{rank+1:02d}_{kind}_score{pr[i]:.3f}_{os.path.basename(img_path)}"
+                fname = f"{rank:02d}_{kind}_score{pr[i]:.3f}_{os.path.basename(img_path)}"
                 cv2.imwrite(os.path.join(top_dir, fname), cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+
+            anomaly_idx = np.where(gt == 1)[0]
+            normal_idx = np.where(gt == 0)[0]
+            low_anomaly_idx = anomaly_idx[np.argsort(pr[anomaly_idx])[:args.print_top_k]]
+            high_normal_idx = normal_idx[np.argsort(pr[normal_idx])[::-1][:args.print_top_k]]
+
+            logger.info("[%s] hardest anomaly images: low anomaly score", obj)
+            for rank, i in enumerate(low_anomaly_idx, start=1):
+                logger.info("  #%02d score=%.4f path=%s", rank, pr[i], results[obj]['img_paths'][i])
+                save_overlay(rank, i, "anomaly_low_score")
+
+            logger.info("[%s] hardest normal images: high anomaly score", obj)
+            for rank, i in enumerate(high_normal_idx, start=1):
+                logger.info("  #%02d score=%.4f path=%s", rank, pr[i], results[obj]['img_paths'][i])
+                save_overlay(rank, i, "normal_high_score")
         results[obj]['imgs_masks'] = None
         results[obj]['anomaly_maps'] = None
         for p in results[obj]['anomaly_map_paths']:
@@ -236,7 +249,7 @@ if __name__ == '__main__':
     parser.add_argument("--metrics", type=str, default='image-pixel-level')
     parser.add_argument("--seed", type=int, default=111, help="random seed")
     parser.add_argument("--sigma", type=int, default=4, help="zero shot")
-    parser.add_argument("--save_top_k", type=int, default=0, help="save top-K worst images per class to save_path/top_worst/")
+    parser.add_argument("--print_top_k", type=int, default=10, help="print and save heatmaps for hardest images by anomaly-score ranking per class")
 
     args = parser.parse_args()
     print(args)

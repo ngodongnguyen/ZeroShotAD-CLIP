@@ -16,7 +16,8 @@ for i in "${!depth[@]}";do
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset mvtec \
         --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/mvtecdataset --save_path ./results/${base_dir}/mvtec \
         --checkpoint_path ${save_dir}epoch_15.pth \
-         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --print_top_k 10
     wait
     done
 done
@@ -35,7 +36,8 @@ for i in "${!depth[@]}";do
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset visa \
         --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/visa --save_path ./results/${base_dir}/visa \
         --checkpoint_path ${save_dir}epoch_15.pth \
-        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --print_top_k 10
     wait
     done
 done
@@ -54,7 +56,8 @@ for i in "${!depth[@]}";do
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset mpdd \
         --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/MPDD --save_path ./results/${base_dir}/mpdd \
         --checkpoint_path ${save_dir}epoch_15.pth \
-        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --print_top_k 10
     wait
     done
 done
@@ -73,7 +76,8 @@ for i in "${!depth[@]}";do
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset DAGM_KaggleUpload \
         --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/DAGM/DAGM_KaggleUpload --save_path ./results/${base_dir}/dagm \
         --checkpoint_path ${save_dir}epoch_15.pth \
-        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --print_top_k 10
     wait
     done
 done
@@ -92,7 +96,8 @@ for i in "${!depth[@]}";do
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset SDD \
         --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/SDD --save_path ./results/${base_dir}/sdd \
         --checkpoint_path ${save_dir}epoch_15.pth \
-        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --print_top_k 10
 
     wait
     done
@@ -113,7 +118,8 @@ for i in "${!depth[@]}";do
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset DTD \
         --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/DTD-Synthetic --save_path ./results/${base_dir}/dtd \
         --checkpoint_path ${save_dir}epoch_15.pth \
-        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --print_top_k 10
     wait
     done
 done
@@ -132,11 +138,10 @@ for i in "${!depth[@]}";do
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset btad \
         --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/btad/BTech_Dataset_transformed --save_path ./results/${base_dir}/btad \
         --checkpoint_path ${save_dir}epoch_15.pth \
-        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --print_top_k 10
     wait
     done
 done
 python ${NOTIFY_SCRIPT} --mode test --dataset btad --log_path ./results/${base_dir}/btad/log.txt --exp_name ${base_dir}
 python ${NOTIFY_SCRIPT} --mode msg --text "✅ All tests done: ${base_dir}"
-
-

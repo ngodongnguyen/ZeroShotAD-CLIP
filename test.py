@@ -180,17 +180,48 @@ def test(args):
             top_dir = os.path.join(args.save_path, 'top_worst', obj)
             os.makedirs(top_dir, exist_ok=True)
 
+            def build_labeled_panel(image, title, height, is_mask=False):
+                if image.ndim == 2:
+                    image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+                panel = cv2.resize(image, (height, height), interpolation=cv2.INTER_NEAREST if is_mask else cv2.INTER_LINEAR)
+                canvas = np.full((height + 36, height, 3), 255, dtype=np.uint8)
+                canvas[36:, :, :] = panel
+                cv2.putText(canvas, title, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (30, 30, 30), 2, cv2.LINE_AA)
+                return canvas
+
             def save_overlay(rank, i, kind):
                 img_path = results[obj]['img_paths'][i]
                 amap = np.load(results[obj]['anomaly_map_paths'][i])
                 vis = cv2.cvtColor(cv2.resize(cv2.imread(img_path), (args.image_size, args.image_size)), cv2.COLOR_BGR2RGB)
                 mask = normalize(amap[0])
                 scoremap = (mask * 255).astype(np.uint8)
-                scoremap = cv2.applyColorMap(scoremap, cv2.COLORMAP_JET)
-                scoremap = cv2.cvtColor(scoremap, cv2.COLOR_BGR2RGB)
-                overlay = (0.5 * vis + 0.5 * scoremap).astype(np.uint8)
-                fname = f"{rank:02d}_{kind}_score{pr[i]:.3f}_{os.path.basename(img_path)}"
-                cv2.imwrite(os.path.join(top_dir, fname), cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+                heatmap = cv2.applyColorMap(scoremap, cv2.COLORMAP_JET)
+                heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+                overlay = (0.5 * vis + 0.5 * heatmap).astype(np.uint8)
+
+                gt_mask = results[obj]['imgs_masks'][i].detach().cpu().numpy()
+                if gt_mask.ndim == 3:
+                    gt_mask = gt_mask[0]
+                gt_mask = (gt_mask > 0.5).astype(np.uint8) * 255
+
+                gt_label = int(gt[i])
+                pred_label = int(pr[i] >= 0.5)
+                status = "match" if gt_label == pred_label else "mismatch"
+                header = f"rank={rank:02d} gt={gt_label} pred={pred_label} score={pr[i]:.3f} {status}"
+
+                panel_size = args.image_size
+                panels = [
+                    build_labeled_panel(vis, "original", panel_size),
+                    build_labeled_panel(gt_mask, "gt_mask", panel_size, is_mask=True),
+                    build_labeled_panel(heatmap, "heatmap", panel_size),
+                    build_labeled_panel(overlay, "overlay", panel_size),
+                ]
+                compare = np.concatenate(panels, axis=1)
+                compare = cv2.cvtColor(compare, cv2.COLOR_RGB2BGR)
+                cv2.putText(compare, header, (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (20, 20, 20), 2, cv2.LINE_AA)
+
+                fname = f"{rank:02d}_{kind}_gt{gt_label}_pred{pred_label}_score{pr[i]:.3f}_{os.path.basename(img_path)}"
+                cv2.imwrite(os.path.join(top_dir, fname), compare)
 
             anomaly_idx = np.where(gt == 1)[0]
             normal_idx = np.where(gt == 0)[0]

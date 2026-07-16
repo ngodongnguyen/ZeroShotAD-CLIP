@@ -8,6 +8,7 @@ from AnomalyCLIP_lib.simple_tokenizer import SimpleTokenizer as _Tokenizer
 # simple_tokenizer = tokenizer.SimpleTokenizer()
 from copy import deepcopy
 import torch.nn as nn
+import torch.nn.functional as F
 
 _tokenizer = _Tokenizer()
 
@@ -82,9 +83,18 @@ def encode_text_with_prompt_ensemble(model, texts, device):
 
 def _get_clones(module, N):
     return nn.ModuleList([deepcopy(module) for i in range(N)])
+
+# OAP: number of abnormal severity levels beyond the base pole (K=1 -> original binary case, bit-exact at init)
+OAP_K = 4
+
 class AnomalyCLIP_PromptLearner(nn.Module):
     def __init__(self, clip_model, design_details):
         super().__init__()
+        # OAP: non-registered reference to the (frozen) CLIP model, used internally to encode
+        # the K+1 ordinal level prompts for self.last_level_feats / ordinal_score(). List-wrapped
+        # so nn.Module does not register it as a submodule (would pull the whole frozen CLIP
+        # backbone into this module's .parameters()/.state_dict() and break optimizer/checkpoint).
+        self._clip_model_ref = [clip_model]
         classnames = ["object"]
         self.n_cls = len(classnames)
         self.n_ctx = design_details["Prompt_length"]
@@ -205,7 +215,21 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.register_buffer("token_prefix_pos", embedding_pos[:, :, :1, :] )
         self.register_buffer("token_suffix_pos", embedding_pos[:, :,1 + n_ctx_pos:, :])
         self.register_buffer("token_prefix_neg", embedding_neg[:,:, :1, :])
-        self.register_buffer("token_suffix_neg", embedding_neg[:, :, 1 + n_ctx_neg:, :])
+        # OAP: the frozen "damaged" token used to sit at embedding_neg[:, :, 1+n_ctx_neg, :]
+        # (verified: "damaged" is exactly 1 BPE token). Carve it out of the frozen suffix and
+        # turn it into a learnable base severity token (self.base_abnormal_token below); keep
+        # the REST of the suffix ("object.", EOT, padding) frozen exactly as before, one
+        # position later.
+        token_state_neg = embedding_neg[:, :, 1 + n_ctx_neg: 2 + n_ctx_neg, :]  # (n_cls, anormaly_num, 1, dim) "damaged" slot
+        self.register_buffer("token_suffix_neg", embedding_neg[:, :, 2 + n_ctx_neg:, :])  # "object." + EOT + pad, frozen
+
+        # OAP: learnable ordinal severity tokens, monotonic by construction.
+        # level 1 == base_abnormal_token exactly (no delta) -> bit-exact vs baseline at OAP_K=1.
+        # levels 2..K: base + cumsum(softplus(level_deltas)), so severity is non-decreasing.
+        # level_deltas init small (std=0.01) -> all levels start clustered near the base token.
+        self.base_abnormal_token = nn.Parameter(token_state_neg[:, :, 0, :].clone())  # (n_cls, anormaly_num, dim)
+        self.level_deltas = nn.Parameter(torch.empty(max(OAP_K - 1, 0), self.n_cls, anormaly_num, ctx_dim, dtype=dtype))
+        nn.init.normal_(self.level_deltas, std=0.01)
 
         n, d = tokenized_prompts_pos.shape
         tokenized_prompts_pos = tokenized_prompts_pos.reshape(normal_num, self.n_cls, d).permute(1, 0, 2)
@@ -246,14 +270,41 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             dim=2,
         )
 
-        prompts_neg = torch.cat(
-            [
-                prefix_neg,  # (n_cls, 1, dim)
-                ctx_neg,  # (n_cls, n_ctx, dim)
-                suffix_neg,  # (n_cls, *, dim)
-            ],
-            dim=2,
-        )
+        # OAP: build K ordinal abnormal severity tokens, monotonic by construction.
+        # level_tokens[0]  == self.base_abnormal_token exactly (no delta added)
+        # level_tokens[1:] == base + cumsum(softplus(level_deltas))  (non-decreasing severity)
+        base_tok = self.base_abnormal_token  # (n_cls, anormaly_num, dim)
+        if OAP_K > 1:
+            deltas = F.softplus(self.level_deltas)                                    # (K-1, n_cls, anormaly_num, dim), >= 0
+            cum = torch.cumsum(deltas, dim=0)                                          # (K-1, n_cls, anormaly_num, dim)
+            level_tokens = torch.cat([base_tok.unsqueeze(0), base_tok.unsqueeze(0) + cum], dim=0)  # (K, n_cls, anormaly_num, dim)
+        else:
+            level_tokens = base_tok.unsqueeze(0)                                       # (1, n_cls, anormaly_num, dim)
+
+        def _build_abnormal_prompt(state_tok):
+            # state_tok: (n_cls, anormaly_num, dim) -> full prompt (n_cls, anormaly_num, 77, dim)
+            return torch.cat(
+                [
+                    prefix_neg,                # (n_cls, anormaly_num, 1, dim)
+                    ctx_neg,                   # (n_cls, anormaly_num, n_ctx, dim)
+                    state_tok.unsqueeze(2),    # (n_cls, anormaly_num, 1, dim)  <- ordinal level token
+                    suffix_neg,                # (n_cls, anormaly_num, *, dim)  "object." + EOT + pad, frozen
+                ],
+                dim=2,
+            )
+
+        # OAP: interface collapse (Step 3). train.py/test.py still call
+        # model.encode_text_learn(prompts, tokenized_prompts, compound_prompts_text) themselves on
+        # whatever is returned here, and expect exactly [2, D] out of that single encode call. The
+        # text encoder is nonlinear, so we cannot return something that reproduces an arbitrary
+        # MEAN-OF-POST-ENCODER-FEATURES via one downstream encode call -- so the collapsed abnormal
+        # pole handed through this [2, D] interface is encoder(mean of the K PRE-ENCODER level
+        # tokens), which is exact at OAP_K=1 and a smooth differentiable aggregate for OAP_K>1.
+        # The TRUE per-level POST-encoder features (for ordinal_score) are computed separately
+        # below into self.last_level_feats, encoding each level individually.
+        mean_level_tok = level_tokens.mean(dim=0)              # (n_cls, anormaly_num, dim)
+        prompts_neg = _build_abnormal_prompt(mean_level_tok)   # (n_cls, anormaly_num, 77, dim)
+        _, _, l_emb, d_emb = prompts_neg.shape  # OAP: capture true embedding dims before l/d get reused below for seq_len
         _, _, l, d = prompts_pos.shape
         prompts_pos = prompts_pos.reshape(-1, l, d)
         _, _, l, d = prompts_neg.shape
@@ -268,4 +319,33 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         tokenized_prompts = torch.cat((tokenized_prompts_pos, tokenized_prompts_neg), dim = 0)
 
 
+        # OAP (Step 3/4): populate self.last_level_feats = [1+K, D] true per-level post-encoder
+        # features (row 0 = normal, rows 1..K = ordinal abnormal levels), for the inference-only
+        # ordinal_score() helper below. Not used by the training loss -> computed under no_grad.
+        with torch.no_grad():
+            level_prompts_flat = [prompts_pos] + [
+                _build_abnormal_prompt(level_tokens[k]).reshape(-1, l_emb, d_emb) for k in range(level_tokens.shape[0])
+            ]  # each item: (n_cls*num, 77, dim); n_cls==normal_num==anormaly_num==1 in this repo
+            all_level_prompts = torch.cat(level_prompts_flat, dim=0)  # (1+K, 77, dim)
+            all_tokenized = torch.cat(
+                [tokenized_prompts_pos] + [tokenized_prompts_neg] * level_tokens.shape[0], dim=0
+            )  # (1+K, 77)
+            self.last_level_feats = self._clip_model_ref[0].encode_text_learn(
+                all_level_prompts, all_tokenized, self.compound_prompts_text
+            )  # (1+K, D)
+
         return prompts, tokenized_prompts, self.compound_prompts_text
+
+    def ordinal_score(self, image_feats):
+        # OAP (Step 4): inference-only helper, never called during training.
+        # image_feats: (B, D), assumed L2-normalized like elsewhere in this pipeline.
+        # Returns the expected ordinal severity level in [0, 1] (soft rank over 1+K levels).
+        level_feats = self.last_level_feats                                  # (1+K, D)
+        level_feats = level_feats / level_feats.norm(dim=-1, keepdim=True)    # (1+K, D)
+        logit_scale = getattr(self._clip_model_ref[0], "logit_scale", None)
+        temperature = float(logit_scale.exp()) if logit_scale is not None else 1.0 / 0.07
+        sims = image_feats.float() @ level_feats.float().t()                  # (B, 1+K)
+        probs = torch.softmax(sims * temperature, dim=-1)                     # (B, 1+K)
+        levels = torch.arange(level_feats.shape[0], device=image_feats.device, dtype=probs.dtype)  # 0..K
+        expected_level = (probs * levels).sum(dim=-1)                        # (B,)
+        return expected_level / OAP_K                                        # normalized to [0, 1]

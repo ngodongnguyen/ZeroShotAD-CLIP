@@ -40,6 +40,38 @@ BASELINE = {
         'dagm_kaggleupload': {
             'image_auroc': 97.5, 'image_ap': 92.3,
             'pixel_auroc': 95.6, 'pixel_aupro': 91.0
+        },
+        # medical, zero-shot (image-level: AUROC/AP)
+        'headct': {
+            'image_auroc': 93.4, 'image_ap': 91.6
+        },
+        'brainmri': {
+            'image_auroc': 90.3, 'image_ap': 92.2
+        },
+        'br35': {
+            'image_auroc': 94.6, 'image_ap': 94.7
+        },
+        'covid': {
+            'image_auroc': 80.1, 'image_ap': 58.7
+        },
+        # medical, zero-shot (pixel-level: AUROC/PRO)
+        'isic': {
+            'pixel_auroc': 89.7, 'pixel_aupro': 78.4
+        },
+        'colondb': {
+            'pixel_auroc': 81.9, 'pixel_aupro': 71.3
+        },
+        'clinicdb': {
+            'pixel_auroc': 82.9, 'pixel_aupro': 67.8
+        },
+        'kvasir': {
+            'pixel_auroc': 78.9, 'pixel_aupro': 45.6
+        },
+        'endotect': {
+            'pixel_auroc': 84.1, 'pixel_aupro': 63.6
+        },
+        'tn3k': {
+            'pixel_auroc': 81.5, 'pixel_aupro': 50.4
         }
     }
 }

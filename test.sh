@@ -143,7 +143,7 @@ NOTIFY_SCRIPT=./scripts/notify.py
 #     wait
 #     done
 # done
-
+#python ${NOTIFY_SCRIPT} --mode test --dataset btad --log_path ./results/${base_dir}/btad/log.txt --exp_name ${base_dir}
 LOG=${save_dir}"res.log"
 echo ${LOG}
 depth=(9)
@@ -163,6 +163,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset br35 --log_path ./results/${base_dir}/br35/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -183,6 +184,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset brainmri --log_path ./results/${base_dir}/BrainMRI/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -203,6 +205,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset clinicdb --log_path ./results/${base_dir}/ClinicDB/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -223,6 +226,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset colondb --log_path ./results/${base_dir}/ColonDB/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -243,6 +247,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset covid --log_path ./results/${base_dir}/Covid/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -263,6 +268,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset endotect --log_path ./results/${base_dir}/EndoTect/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -283,6 +289,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset headct --log_path ./results/${base_dir}/HeadCT/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -303,6 +310,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset isic --log_path ./results/${base_dir}/ISIC/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -323,6 +331,7 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset kvasir --log_path ./results/${base_dir}/Kvasir/log.txt --exp_name ${base_dir}
 
 LOG=${save_dir}"res.log"
 echo ${LOG}
@@ -343,6 +352,6 @@ for i in "${!depth[@]}";do
     wait
     done
 done
+python ${NOTIFY_SCRIPT} --mode test --dataset tn3k --log_path ./results/${base_dir}/TN3K/log.txt --exp_name ${base_dir}
 
-python ${NOTIFY_SCRIPT} --mode test --dataset btad --log_path ./results/${base_dir}/btad/log.txt --exp_name ${base_dir}
 python ${NOTIFY_SCRIPT} --mode msg --text "✅ All tests done: ${base_dir}"

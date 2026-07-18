@@ -17,19 +17,19 @@ class MpddSolver(object):
         anomaly_samples = 0
         normal_samples = 0
         for cls_name in self.CLSNAMES:
-            cls_dir = f'{self.root}'
+            cls_dir = f'{self.root}/COVID-19_Radiography_Dataset'
             for phase in ['test']:
                 cls_info = []
-                species = os.listdir(f'{cls_dir}')
+                species = [s for s in os.listdir(f'{cls_dir}') if os.path.isdir(f'{cls_dir}/{s}')]
                 for specie in species:
-                    is_abnormal = True if specie not in ['NORMAL'] else False
-                    img_names = os.listdir(f'{cls_dir}/{specie}/')
+                    is_abnormal = True if specie not in ['Normal'] else False
+                    img_names = os.listdir(f'{cls_dir}/{specie}/images')
 
                     img_names.sort()
 
                     for idx, img_name in enumerate(img_names):
                         info_img = dict(
-                            img_path=f'{specie}/{img_name}',
+                            img_path=f'COVID-19_Radiography_Dataset/{specie}/images/{img_name}',
                             mask_path="",
                             cls_name=cls_name,
                             specie_name=specie,

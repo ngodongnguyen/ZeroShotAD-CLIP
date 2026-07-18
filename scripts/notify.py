@@ -80,25 +80,24 @@ METRIC_KEYS = ['image_auroc', 'image_ap', 'pixel_auroc', 'pixel_aupro']
 
 
 def parse_log(log_path):
-    """Extract mean metrics from the last table in a log file."""
-    text = Path(log_path).read_text()
-    # Look for the pipe-formatted results table; grab the 'mean' row
-    # Pattern: | mean | 94.3 | 88.5 | 78.3 | 81.9 |
-    pattern = r'\|\s*mean\s*\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|'
-    matches = re.findall(pattern, text)
-    if not matches:
-        # try 2-column (image-level only)
-        pattern2 = r'\|\s*mean\s*\|([^|]+)\|([^|]+)\|'
-        matches2 = re.findall(pattern2, text)
-        if matches2:
-            vals = [v.strip() for v in matches2[-1]]
-            return {'image_auroc': float(vals[0]), 'image_ap': float(vals[1])}
+    """Extract mean metrics from the last table in a log file, using the
+    table's own header row to name each column (works for 2-col image-level,
+    2-col pixel-level, or 4-col image-pixel-level tables alike)."""
+    header_cols = None
+    mean_vals = None
+    for line in Path(log_path).read_text().splitlines():
+        if re.match(r'^\s*\|\s*objects\s*\|', line):
+            header_cols = [c.strip() for c in line.strip().strip('|').split('|')][1:]
+            continue
+        m = re.match(r'^\s*\|\s*mean\s*\|(.+)\|\s*$', line)
+        if m and header_cols is not None:
+            mean_vals = [v.strip() for v in line.strip().strip('|').split('|')][1:]
+
+    if not header_cols or not mean_vals:
         return {}
 
-    vals = [v.strip() for v in matches[-1]]
-    keys = ['pixel_auroc', 'pixel_aupro', 'image_auroc', 'image_ap']
     result = {}
-    for k, v in zip(keys, vals):
+    for k, v in zip(header_cols, mean_vals):
         try:
             result[k] = float(v)
         except ValueError:

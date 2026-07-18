@@ -15,7 +15,7 @@ class Br35Solver(object):
             cls_dir = f'{self.root}/'
             for phase in ['test']:
                 cls_info = []
-                species = os.listdir(f'{cls_dir}')
+                species = ['no', 'yes']
                 for specie in species:
                     is_abnormal = True if specie not in ['no'] else False
                     img_names = os.listdir(f'{cls_dir}/{specie}')

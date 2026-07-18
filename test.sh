@@ -155,7 +155,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset brain \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/br35/ --save_path ./results/${base_dir}/br35 \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/br35 --save_path ./results/${base_dir}/br35 \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics image-level \
@@ -175,7 +175,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset brain \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/BrainMRI/ --save_path ./results/${base_dir}/BrainMRI \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/BrainMRI --save_path ./results/${base_dir}/BrainMRI \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics image-level \
@@ -195,7 +195,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset colon \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/CVC/CVC-ClinicDB/ --save_path ./results/${base_dir}/ClinicDB \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/CVC/CVC-ClinicDB --save_path ./results/${base_dir}/ClinicDB \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics pixel-level \
@@ -215,7 +215,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset colon \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/CVC/CVC-ColonDB/ --save_path ./results/${base_dir}/ColonDB \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/CVC/CVC-ColonDB --save_path ./results/${base_dir}/ColonDB \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics pixel-level \
@@ -235,7 +235,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset Chest \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/Covid/ --save_path ./results/${base_dir}/Covid \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/Covid --save_path ./results/${base_dir}/Covid \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics image-level \
@@ -255,7 +255,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset colon \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/EndoTect_2020_Segmentation_Test_Dataset/ --save_path ./results/${base_dir}/EndoTect \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/EndoTect_2020_Segmentation_Test_Dataset --save_path ./results/${base_dir}/EndoTect \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics pixel-level \
@@ -275,7 +275,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset brain \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/HeadCT_anomaly_detection/ --save_path ./results/${base_dir}/HeadCT \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/HeadCT_anomaly_detection --save_path ./results/${base_dir}/HeadCT \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics image-level \
@@ -295,7 +295,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset ISBI \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/ISIC/ --save_path ./results/${base_dir}/ISIC \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/ISIC --save_path ./results/${base_dir}/ISIC \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics pixel-level \
@@ -315,7 +315,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset colon \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/CVC/Kvasir/ --save_path ./results/${base_dir}/Kvasir \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/CVC/Kvasir --save_path ./results/${base_dir}/Kvasir \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics pixel-level \
@@ -335,7 +335,7 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale_visa
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python test.py --dataset thyroid \
-        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/TN3K/ --save_path ./results/${base_dir}/TN3K \
+        --data_path /home/ai3/NguyenND/ZeroShotAD-CLIP/data/TN3K --save_path ./results/${base_dir}/TN3K \
         --checkpoint_path ${save_dir}epoch_15.pth \
         --features_list 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
         --metrics pixel-level \

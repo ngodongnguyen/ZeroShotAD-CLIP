@@ -34,5 +34,5 @@ class Br35Solver(object):
             f.write(json.dumps(info, indent=4) + "\n")
 
 if __name__ == '__main__':
-    runner = Br35Solver(root='/remote-home/iot_zhouqihang/data/br35')
+    runner = Br35Solver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/br35')
     runner.run()

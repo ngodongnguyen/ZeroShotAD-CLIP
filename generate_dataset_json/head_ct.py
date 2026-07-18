@@ -44,5 +44,6 @@ class MpddSolver(object):
         print('normal_samples', normal_samples, 'anomaly_samples', anomaly_samples)
 
 if __name__ == '__main__':
-    runner = MpddSolver(root='/remote-home/iot_zhouqihang/data/HeadCT_anomaly_detection')
+
+    runner = MpddSolver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/HeadCT_anomaly_detection')
     runner.run()

@@ -46,5 +46,5 @@ class ClinicDBSolver(object):
 
 
 if __name__ == '__main__':
-    runner = ClinicDBSolver(root='/remote-home/iot_zhouqihang/data/medical/CVC-ClinicDB')
+    runner = ClinicDBSolver(root='/home/ai3/NguyenND/ZeroShotAD-CLIP/data/CVC/CVC-ClinicDB')
     runner.run()

@@ -3,7 +3,6 @@ device=0
 
 NOTIFY_SCRIPT=./scripts/notify.py
 
-python ${NOTIFY_SCRIPT} --mode test --dataset btad --log_path ./results/${base_dir}/btad/log.txt --exp_name ${base_dir}
 LOG=${save_dir}"res.log"
 echo ${LOG}
 depth=(9)
